@@ -76,8 +76,8 @@ instance Generator GameM where
     y <- liftIO $ randomRIO (0,7)
     return (x, y)
 
-main :: IO ()
-main = runGameM stepGame
+reversi :: IO ()
+reversi = runGameM stepGame
 
 runGameM :: GameM a -> IO a
 runGameM (GameM m) = evalStateT m startingState

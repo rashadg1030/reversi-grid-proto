@@ -60,10 +60,9 @@ tileMap sides GridState{ inputState = (mx, my, click), gameState = GameState{ cu
     let (symbol, shape) = case lookup (x,y) currentBoard of
                             Nothing -> (Nothing, Nothing)
                             Just d  -> if d == White then
-                                        (Just ('w', White1), Just (Circle, White1))
+                                        (Just ('W', White1), Just (Circle, White1))
                                        else
-                                        (Just ('!', Black1), Just (Circle, Black1))
-
+                                        (Just ('B', Black1), Just (Circle, Black1))
 
     return ((x,y), Tile symbol shape color)
 
