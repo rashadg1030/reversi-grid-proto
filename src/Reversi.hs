@@ -101,7 +101,7 @@ stepGame = do
       if elem loc moves then 
         do
           writeMoveMessage disc loc
-          modify $ play loc
+          modify $ makePlay loc
           stepGame 
       else
         if loc == ((-1), (-1)) then
@@ -128,8 +128,8 @@ startingState :: GameState
 startingState = GameState Black startingBoard []
 
 -- For modifying GameState
-play :: Location -> GameState -> GameState
-play loc gs = addFrame new old
+makePlay :: Location -> GameState -> GameState
+makePlay loc gs = addFrame new old
       where 
         new :: GameState 
         new = (changePlayer . (playDisc loc)) gs

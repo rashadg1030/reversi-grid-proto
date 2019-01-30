@@ -1,13 +1,13 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Grid where (play) 
+module Grid (play) where 
 
 import GridProto.Classic
 import GridProto.Core
 
 import Board
 import Types
-import Reversi (play)
+import Reversi 
 import Actions 
 import Prelude hiding (map, lookup)
 import Data.Map (map, lookup, fromList)
@@ -18,7 +18,7 @@ play :: IO ()
 play = runClassic classic
 
 classic :: Classic GridState
-classic = GridProto
+classic = Classic
   { title = "Reversi"
   , rows = sides
   , cols = sides
@@ -27,35 +27,39 @@ classic = GridProto
   , setupFn = return $ GridState{ inputState = (0, 0, False), gameState = startingState }
   , updateFn = update
   , cleanupFn = const (return ())
-  , tilesMapFn = tileMap sides
+  , tileMapFn = tileMap sides
   , quitFn = quit
   }
   where
     sides = 8
 
 update :: Input -> GridState -> IO GridState
-update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=keys} _
-    | mouseButton == Pressed = return GridState{ inputState = (mx, my, True), gameState = play (mx, my) gameState }
-    | otherwise = return (mx, my, lookupKey keys Escape == Released)
+update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=keys} GridState{ inputState, gameState }
+    | mouseButton == Released = return GridState{ inputState = (mx, my, True), gameState = makePlay (mx, my) gameState }
+    | otherwise = return GridState{ inputState = (mx, my, lookupKey keys Escape == Released), gameState = gameState }
 
 
 tileMap :: Int -> GridState -> Map (Int, Int) Tile
-tileMap sides GridState{ inputState, gameState } = fromList $ do
+tileMap sides GridState{ inputState = (mx, my, click), gameState } = fromList $ do
     y <- [0..(sides - 1)]
     x <- [0..(sides - 1)]
-    let color = Just $
-        if (mx,my) == (x,y)
-            -- Mouse color
-            then if click then Green1 else Red1
-            -- Alternate background colors
-            else if (x + y) `mod` 2 == 0 then Brown1 else Brown2
-    let (symbol, shape) = 
-        case lookup (x,y) (currentBoard gameState) of
-            Nothing -> (Nothing, Nothing)
-            Just d  -> if d == White then
-                            (Just ('w', White1), Just (Circle, White1))
-                            else
-                            (Just ('!', Black1), Just (Circle, Black1))
+    let color = Just $ if (mx, my) == (x,y) then 
+                        if click then 
+                            Green1 
+                        else 
+                            Red1
+                       else 
+                        if (x + y) `mod` 2 == 0 then 
+                            Brown1 
+                        else 
+                            Brown2
+
+    let (symbol, shape) = case lookup (x,y) (currentBoard gameState) of
+                            Nothing -> (Nothing, Nothing)
+                            Just d  -> if d == White then
+                                        (Just ('w', White1), Just (Circle, White1))
+                                       else
+                                        (Just ('!', Black1), Just (Circle, Black1))
 
 
     return ((x,y), Tile symbol shape color)
@@ -90,8 +94,10 @@ tileMap sides GridState{ inputState, gameState } = fromList $ do
 --   return ((x,y), Cell shape color)
 
 discToColor :: Disc -> Color
-discToColor T.White = G.White
-discToColor T.Black = G.Black
+discToColor White = White1
+discToColor Black = Black1
 
 quit :: GridState -> Bool
 quit _ = False
+
+
