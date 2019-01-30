@@ -1,8 +1,10 @@
 module Lib
-    ( someFunc
+    ( play
     ) where
 
 import GridProto.Core
+import GridProto.Classic
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+play :: IO ()
+play = undefined
+
