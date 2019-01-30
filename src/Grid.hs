@@ -38,7 +38,7 @@ update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=key
     | mouseButton == Pressed = return $ if elem (mx, my) (possibleMoves currentDisc currentBoard) then
                                             GridState{ inputState = (mx, my, True), gameState = makePlay (mx, my) gameState }
                                         else 
-                                            GridState{ inputState = (mx, my, False), gameState = gameState }
+                                            GridState{ inputState = (mx, my, True), gameState = gameState }
     | otherwise = return GridState{ inputState = (mx, my, lookupKey keys Escape == Released), gameState = gameState }
 
 
