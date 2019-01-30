@@ -6,6 +6,12 @@ import Data.Maybe
 import Board
 import Types
 
+isOccupied :: Location -> Board -> Bool
+isOccupied loc board = case Map.lookup loc board of
+                        Nothing -> False 
+                        Just _  -> True
+
+
 flipDisc :: Disc -> Disc
 flipDisc Black = White
 flipDisc White = Black
