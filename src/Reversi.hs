@@ -15,6 +15,15 @@ import Board
 import Types
 import Control.Monad.State.Lazy
 
+import qualified Data.Map.Strict as Map
+import Control.Monad.IO.Class
+import System.Random (randomRIO)
+import Text.Read hiding (get)
+import Actions
+import Board
+import Types
+import Control.Monad.State.Lazy
+
 data GameState = GameState { currentDisc :: Disc, currentBoard :: Board, frames :: [GameState]  }
   deriving (Show, Eq)
 
@@ -22,13 +31,13 @@ newtype GameM a = GameM (StateT GameState IO a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadState GameState) -- MonadState GameState is important
 
 class Monad m => Logger m where
-  writeMoveMessage :: Disc -> Location -> m ()
-  writePassMessage :: Disc -> m ()
-  writeFailMessage :: Disc -> m ()
-  writePrompt :: Disc -> m ()
+  writeMoveMessage :: GameState -> Location -> m ()
+  writePassMessage :: GameState -> m ()
+  writeFailMessage :: GameState -> m ()
+  writePrompt :: GameState -> m ()
+  writePossibleMoves :: GameState -> m ()
+  writeBoard :: GameState -> m ()
   writeFinalMessage :: Final -> m ()
-  writePossibleMoves :: Disc -> Board -> m ()
-  writeBoard :: Board -> m ()
 
 class Monad m => Control m where
   getInput :: m Location
@@ -37,27 +46,42 @@ class Monad m => Generator m where
   randomLoc :: m Location
 
 instance Logger GameM where
-  writeMoveMessage :: Disc -> Location -> GameM ()
-  writeMoveMessage disc loc = liftIO . putStrLn $ (show disc) ++ " disc placed at " ++ (show loc) ++ "."
+  writeMoveMessage :: GameState -> Location -> GameM ()
+  writeMoveMessage gs loc = liftIO . putStrLn $ moveMessage
+    where
+      moveMessage :: String
+      moveMessage = (show $ currentDisc gs) ++ " disc placed at " ++ (show loc) ++ "."
 
-  writePassMessage :: Disc -> GameM ()
-  writePassMessage disc = liftIO . putStrLn . ((show disc) ++) $ " passes..."
+  writePassMessage :: GameState -> GameM ()
+  writePassMessage gs = liftIO . putStrLn $ passMessage 
+    where 
+      passMessage :: String
+      passMessage = (show $ currentDisc gs) ++ " passes..."
 
-  writeFailMessage :: Disc -> GameM ()
-  writeFailMessage d = liftIO . putStrLn $ (show d) ++ " made an invalid move."
+  writeFailMessage :: GameState -> GameM ()
+  writeFailMessage gs = liftIO . putStrLn $ failMessage 
+    where
+      failMessage :: String
+      failMessage = (show $ currentDisc gs) ++ " made an invalid move."
 
-  writePrompt :: Disc -> GameM ()
-  writePrompt disc = liftIO . putStrLn . ((show disc) ++) $ "'s move. Enter a location in the format (x,y). Ctrl + C to quit."
+  writePrompt :: GameState -> GameM ()
+  writePrompt gs = liftIO . putStrLn $ prompt
+    where
+      prompt :: String
+      prompt = (show $ currentDisc gs) ++ "'s move. Enter a location in the format (x,y). Ctrl + C to quit."
+
+  writePossibleMoves :: GameState -> GameM ()
+  writePossibleMoves gs = liftIO . putStrLn $ possibleMovesMsg
+    where 
+      possibleMovesMsg :: String 
+      possibleMovesMsg = "Possible Moves: " ++ (show $ possibleMoves (currentDisc gs) (currentBoard gs))
+
+  writeBoard :: GameState -> GameM ()
+  writeBoard = liftIO . putBoard . currentBoard
 
   writeFinalMessage :: Final -> GameM ()
   writeFinalMessage (Win disc) = liftIO . putStrLn $ (show disc) ++ " won! " ++ (show . flipDisc $ disc) ++ " lost!"
   writeFinalMessage Tie        = liftIO . putStrLn $ "It's a tie!" 
-
-  writePossibleMoves :: Disc -> Board -> GameM ()
-  writePossibleMoves d = (liftIO . putStrLn . ("Possible Moves: "++) . show . possibleMoves d)
-
-  writeBoard :: Board -> GameM ()
-  writeBoard = liftIO . putBoard
 
 instance Control GameM where
   getInput :: GameM Location
@@ -79,29 +103,29 @@ instance Generator GameM where
 reversi :: IO ()
 reversi = runGameM stepGame
 
+main' :: IO ()
+main' = runGameM genRandomGame
+
 runGameM :: GameM a -> IO a
 runGameM (GameM m) = evalStateT m startingState
 
 stepGame :: (Logger m, Control m, MonadState GameState m) => m ()
 stepGame = do
   gs <- get
-  gameEnd
-  let disc = currentDisc gs
-  let board = currentBoard gs
-  writeBoard board 
-  case possibleMoves disc board of
+  writeBoard gs
+  case plausibleMoves gs of
     [] -> do
-      writePassMessage disc
+      writePassMessage gs
       modify changePlayer
       stepGame
     moves -> do
-      writePrompt disc
-      writePossibleMoves disc board
+      writePrompt gs
+      writePossibleMoves gs
       loc <- getInput
       if elem loc moves then 
         do
-          writeMoveMessage disc loc
-          modify $ makePlay loc
+          writeMoveMessage gs loc
+          modify $ play loc
           stepGame 
       else
         if loc == ((-1), (-1)) then
@@ -110,15 +134,16 @@ stepGame = do
             stepGame
         else 
           do
-            writeFailMessage disc
+            writeFailMessage gs
             stepGame
+  if noMoves gs then gameEnd else stepGame
 
 gameEnd :: (Logger m, MonadState GameState m) => m () -- Need (MonadState GameState m) constraint
 gameEnd = do
   gs <- get 
   if noMoves gs then
     do 
-      writeBoard $ currentBoard gs
+      writeBoard gs
       let final = getFinal gs
       writeFinalMessage final
   else return ()
@@ -128,8 +153,8 @@ startingState :: GameState
 startingState = GameState Black startingBoard []
 
 -- For modifying GameState
-makePlay :: Location -> GameState -> GameState
-makePlay loc gs = addFrame new old
+play :: Location -> GameState -> GameState
+play loc gs = addFrame new old
       where 
         new :: GameState 
         new = (changePlayer . (playDisc loc)) gs
@@ -148,7 +173,8 @@ playDisc loc (GameState disc board fs) = GameState disc (makeMove disc loc board
 
 changePlayer :: GameState -> GameState
 changePlayer (GameState disc board fs) = GameState (flipDisc disc) board fs
- 
+
+--
 noMoves :: GameState -> Bool
 noMoves (GameState disc board _) = ((length $ possibleMoves disc board) == 0) && ((length $ possibleMoves (flipDisc disc) board) == 0)
 
@@ -161,28 +187,27 @@ getFinal (GameState _ board _) = if step31 == step32 then Tie else Win greater
     step32  = length $ filter (\d2 -> d2 == Black) step2
     greater = if step31 > step32 then White else Black
 
+-- PossibleMoves for GameState
+plausibleMoves :: GameState -> [Location]
+plausibleMoves gs = possibleMoves (currentDisc gs) (currentBoard gs)
+
 -- Generate Random Game --
--- randomGame :: (Logger m, Generator m) => m ()
--- randomGame = do 
---   genRandomGame (State Black startingBoard)
-    
--- genRandomGame :: (Logger m, Generator m) => State -> m ()
--- genRandomGame state@(State disc board) = do
---   gameEnd state
---   writeBoard board   
---   case possibleMoves disc board of
---     [] -> do
---       writePassMessage disc
---       let newState = (State (flipDisc disc) board)
---       genRandomGame newState 
---     _  -> do
---       loc <- genLoc state
---       writeMoveMessage disc loc 
---       let newState = (State (flipDisc disc) (makeMove disc loc board))
---       genRandomGame newState  
+genRandomGame :: (Logger m, Generator m, MonadState GameState m) => m ()
+genRandomGame = do
+  gs <- get
+  writeBoard gs   
+  case plausibleMoves gs of
+    [] -> do
+      writePassMessage gs
+      modify changePlayer
+    _  -> do
+      loc <- genLoc gs
+      writeMoveMessage gs loc
+      modify $ play loc
+  if noMoves gs then gameEnd else genRandomGame
                    
--- genLoc :: Generator m => State -> m (Int, Int)
--- genLoc state@(State disc board) = do
---   let possible = possibleMoves disc board
---   loc <- randomLoc
---   if elem loc possible then return loc else genLoc state         
+genLoc :: Generator m => GameState -> m (Int, Int)
+genLoc gs = do
+  let possible = plausibleMoves gs
+  loc <- randomLoc
+  if elem loc possible then return loc else genLoc gs        

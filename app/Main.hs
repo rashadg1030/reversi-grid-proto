@@ -1,6 +1,6 @@
 module Main where
 
-import Grid (play)
+import Grid (start)
 
 main :: IO ()
-main = play
+main = start

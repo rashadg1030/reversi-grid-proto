@@ -1,6 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Grid (play) where 
+module Grid (start) where 
 
 import GridProto.Classic
 import GridProto.Core
@@ -14,8 +14,8 @@ import Data.Map (map, lookup, fromList)
 
 data GridState = GridState{ inputState :: (Int, Int, Bool), gameState :: GameState }
 
-play :: IO ()
-play = runClassic classic
+start :: IO ()
+start = runClassic classic
 
 classic :: Classic GridState
 classic = Classic
@@ -36,7 +36,7 @@ classic = Classic
 update :: Input -> GridState -> IO GridState
 update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=keys} GridState{ inputState = inputState@(x, y, click), gameState = gameState@GameState{ currentDisc, currentBoard, frames } }
     | mouseButton == Pressed = return $ if elem (mx, my) (possibleMoves currentDisc currentBoard) then
-                                            GridState{ inputState = (mx, my, True), gameState = makePlay (mx, my) gameState }
+                                            GridState{ inputState = (mx, my, True), gameState = play (mx, my) gameState }
                                         else 
                                             GridState{ inputState = (mx, my, True), gameState = gameState }
     | otherwise = return GridState{ inputState = (mx, my, lookupKey keys Escape == Released), gameState = gameState }
