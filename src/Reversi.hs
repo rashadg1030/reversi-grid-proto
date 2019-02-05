@@ -152,7 +152,7 @@ gameEnd = do
 startingState :: GameState
 startingState = GameState Black startingBoard []
 
--- For modifying GameState
+-- For modifying GameState --
 play :: Location -> GameState -> GameState
 play loc gs = addFrame new old
       where 
@@ -174,7 +174,6 @@ playDisc loc (GameState disc board fs) = GameState disc (makeMove disc loc board
 changePlayer :: GameState -> GameState
 changePlayer (GameState disc board fs) = GameState (flipDisc disc) board fs
 
---
 noMoves :: GameState -> Bool
 noMoves (GameState disc board _) = ((length $ possibleMoves disc board) == 0) && ((length $ possibleMoves (flipDisc disc) board) == 0)
 
@@ -187,7 +186,7 @@ getFinal (GameState _ board _) = if step31 == step32 then Tie else Win greater
     step32  = length $ filter (\d2 -> d2 == Black) step2
     greater = if step31 > step32 then White else Black
 
--- PossibleMoves for GameState
+-- possibleMoves for GameState --
 plausibleMoves :: GameState -> [Location]
 plausibleMoves gs = possibleMoves (currentDisc gs) (currentBoard gs)
 

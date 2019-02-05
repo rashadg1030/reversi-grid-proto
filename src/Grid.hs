@@ -14,6 +14,8 @@ import Data.Map (map, lookup, fromList)
 
 data GridState = GridState{ inputState :: (Int, Int, Bool), gameState :: GameState }
 
+-- Need function for passing to next player when no moves are available
+
 start :: IO ()
 start = runClassic classic
 
@@ -31,38 +33,46 @@ classic = Classic
   , quitFn = quit
   }
   where
-    sides = 8
+    sides = 11
 
 update :: Input -> GridState -> IO GridState
 update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=keys} GridState{ inputState = inputState@(x, y, click), gameState = gameState@GameState{ currentDisc, currentBoard, frames } }
-    | mouseButton == Pressed = return $ if elem (mx, my) (possibleMoves currentDisc currentBoard) then
-                                            GridState{ inputState = (mx, my, True), gameState = play (mx, my) gameState }
-                                        else 
-                                            GridState{ inputState = (mx, my, True), gameState = gameState }
+    | mouseButton == Pressed = return $ action
     | otherwise = return GridState{ inputState = (mx, my, lookupKey keys Escape == Released), gameState = gameState }
+    where
+        action = if length (possibleMoves currentDisc currentBoard) == 0 then
+                    GridState{ inputState = (mx, my, True), gameState = changePlayer gameState }
+                 else
+                    if elem (mx, my) (possibleMoves currentDisc currentBoard) then
+                        GridState{ inputState = (mx, my, True), gameState = play (mx, my) gameState }
+                    else 
+                        GridState{ inputState = (mx, my, True), gameState = gameState }
 
 
 tileMap :: Int -> GridState -> Map (Int, Int) Tile
 tileMap sides GridState{ inputState = (mx, my, click), gameState = GameState{ currentDisc, currentBoard, frames } } = fromList $ do
     y <- [0..(sides - 1)]
     x <- [0..(sides - 1)]
-    let color = Just $ if (mx, my) == (x,y) then 
-                        if elem (mx, my) (possibleMoves currentDisc currentBoard) then 
-                            Green1 
-                        else
-                            Red1
-                       else 
-                        if (x + y) `mod` 2 == 0 then 
-                            Brown1 
+    let color = Just $ if x < 8 then
+                        if (mx, my) == (x,y) then 
+                            if elem (mx, my) (possibleMoves currentDisc currentBoard) then 
+                                Green1 
+                            else
+                                Red1
                         else 
-                            Brown2
+                            if (x + y) `mod` 2 == 0 then 
+                                Brown1 
+                            else 
+                                Brown2
+                       else 
+                            Blue0
 
     let (symbol, shape) = case lookup (x,y) currentBoard of
                             Nothing -> (Nothing, Nothing)
                             Just d  -> if d == White then
-                                        (Just ('W', White1), Just (Circle, White1))
+                                        (Just ('W', White0), Just (Circle, White1))
                                        else
-                                        (Just ('B', Black1), Just (Circle, Black1))
+                                        (Just ('B', Black0), Just (Circle, Black1))
 
     return ((x,y), Tile symbol shape color)
 
