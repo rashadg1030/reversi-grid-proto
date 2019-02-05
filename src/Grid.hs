@@ -10,7 +10,7 @@ import Types
 import Reversi 
 import Actions 
 import Prelude hiding (map, lookup)
-import Data.Map (map, lookup, fromList)
+import qualified Data.Map as Map
 import qualified Data.Char as C
 
 data GridState = GridState{ inputState :: (Int, Int, Bool), gameState :: GameState }
@@ -23,18 +23,19 @@ start = runClassic classic
 classic :: Classic GridState
 classic = Classic
   { title = "Reversi"
-  , rows = sides
-  , cols = sides
+  , rows = boardSize + metaSize
+  , cols = boardSize + metaSize
   , tilePixelSize = 128
   , backgroundColor = Black2
   , setupFn = return $ GridState{ inputState = (0, 0, False), gameState = startingState }
   , updateFn = update
   , cleanupFn = const (return ())
-  , tileMapFn = (tileMap sides)
+  , tileMapFn = gridMap boardSize metaSize 
   , quitFn = quit
   }
-  where
-    sides = 11
+    where
+        boardSize = 8
+        metaSize = 5
 
 update :: Input -> GridState -> IO GridState
 update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=keys} GridState{ inputState = inputState@(x, y, click), gameState = gameState@GameState{ currentDisc, currentBoard, frames } }
@@ -49,26 +50,26 @@ update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=key
                     else 
                         GridState{ inputState = (mx, my, True), gameState = gameState }
 
+gridMap :: Int -> Int -> GridState -> Map (Int, Int) Tile
+gridMap bSize mSize state = Map.union (boardMap bSize state) (metaDataMap bSize state)
 
-tileMap :: Int -> GridState -> Map (Int, Int) Tile
-tileMap sides GridState{ inputState = (mx, my, click), gameState = GameState{ currentDisc, currentBoard, frames } } = fromList $ do
-    y <- [0..(sides - 1)]
-    x <- [0..(sides - 1)]
-    let color = Just $ if x < 8 then
-                        if (mx, my) == (x,y) then 
-                            if elem (mx, my) (possibleMoves currentDisc currentBoard) then 
-                                Green1 
-                            else
-                                Red1
-                        else 
-                            if (x + y) `mod` 2 == 0 then 
-                                Brown1 
-                            else 
-                                Brown2
+boardMap :: Int -> GridState -> Map (Int, Int) Tile
+boardMap bSize GridState{ inputState = (mx, my, click), gameState = GameState{ currentDisc, currentBoard, frames } } = fromList $ do
+    y <- [0..(bSize - 1)]
+    x <- [0..(bSize - 1)]
+    let color = Just $ if (mx, my) == (x,y) then 
+                        if elem (mx, my) (possibleMoves currentDisc currentBoard) then 
+                            Green1 
+                        else
+                            Red1
                        else 
-                            Blue0
+                        if (x + y) `mod` 2 == 0 then 
+                            Brown1 
+                        else 
+                            Brown2
+                        
 
-    let (symbol, shape) = case lookup (x,y) currentBoard of
+    let (symbol, shape) = case Map.lookup (x,y) currentBoard of
                             Nothing -> (Nothing, Nothing)
                             Just d  -> if d == White then
                                         (Just ('W', White0), Just (Circle, White0))
@@ -77,12 +78,36 @@ tileMap sides GridState{ inputState = (mx, my, click), gameState = GameState{ cu
 
     return ((x,y), Tile symbol shape color)
 
-metaData :: GridState -> Map (Int, Int) Tile
-metaData GridState{ inputState, gameState } = fromList $ [((9, 0), blackScoreTile), ((10, 0), whiteScoreTile)]
+metaDataMap :: Int -> GridState -> Map (Int, Int) Tile
+metaDataMap bSize GridState{ inputState, gameState } = Map.union turnTile (Map.union leftScoreTile rightScoreTile)
     where
-        whiteScoreTile = Tile (Just (C.intToDigit $ whiteScore gameState, White0)) (Just (Square, White0)) (Just Blue0)
-        blackScoreTile = Tile (Just (C.intToDigit $ blackScore gameState, Black0)) (Just (Square, Black0)) (Just Blue0)
-                                
+        leftScoreTile  = twoDigitToTile White0 (bSize, 0) (whiteScore gameState)
+        rightScoreTile = twoDigitToTile Black0 (bSize + 3, 0) (blackScore gameState)
+        turnTile       = fromList $ [((bSize + 2, 0), Tile (Just (turnChar, Rose2)) (Nothing) (Just Cyan2))]
+        turnChar       = if currentDisc gameState == Black then '>' else '<'
+        turnColor      = if currentDisc gameState == Black then Black0 else White0 
+
+twoDigitToTile :: Color -> (Int, Int) -> Int -> Map (Int, Int) Tile
+twoDigitToTile c (x, y) n = fromList $ [((x, y), tile1), ((x + 1, y), tile2)]
+    where
+        digit1 = fst $ splitInt n
+        digit2 = snd $ splitInt n 
+        tile1  = Tile (Just (digit1, c)) (Nothing) (Just Cyan2)
+        tile2  = Tile (Just (digit2, c)) (Nothing) (Just Cyan2)
+
+splitInt :: Int -> (Char, Char)
+splitInt n = if (length $ show n) == 1 then
+                ('0', C.intToDigit n)
+             else             
+                digitListToPair $ show n
+
+digitListToPair :: [Char] -> (Char, Char)
+digitListToPair [x, y] = (x, y)
+digitListToPair _      = ('0', '0')
+
+-- listToPair :: [a] -> (a, a)
+-- listToPair [x, y] = (x, y)
+-- listToPair _      = ???
 
 discToColor :: Disc -> Color
 discToColor White = White1
