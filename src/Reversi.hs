@@ -186,6 +186,12 @@ getFinal (GameState _ board _) = if step31 == step32 then Tie else Win greater
     step32  = length $ filter (\d2 -> d2 == Black) step2
     greater = if step31 > step32 then White else Black
 
+blackScore :: GameState -> Int
+blackScore = length . Map.toList . Map.filter (\x -> x == Black) . currentBoard
+
+whiteScore :: GameState -> Int
+whiteScore = length . Map.toList . Map.filter (\x -> x == White) . currentBoard
+
 -- possibleMoves for GameState --
 plausibleMoves :: GameState -> [Location]
 plausibleMoves gs = possibleMoves (currentDisc gs) (currentBoard gs)

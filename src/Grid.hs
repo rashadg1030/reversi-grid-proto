@@ -11,6 +11,7 @@ import Reversi
 import Actions 
 import Prelude hiding (map, lookup)
 import Data.Map (map, lookup, fromList)
+import qualified Data.Char as C
 
 data GridState = GridState{ inputState :: (Int, Int, Bool), gameState :: GameState }
 
@@ -29,7 +30,7 @@ classic = Classic
   , setupFn = return $ GridState{ inputState = (0, 0, False), gameState = startingState }
   , updateFn = update
   , cleanupFn = const (return ())
-  , tileMapFn = tileMap sides
+  , tileMapFn = (tileMap sides)
   , quitFn = quit
   }
   where
@@ -70,11 +71,18 @@ tileMap sides GridState{ inputState = (mx, my, click), gameState = GameState{ cu
     let (symbol, shape) = case lookup (x,y) currentBoard of
                             Nothing -> (Nothing, Nothing)
                             Just d  -> if d == White then
-                                        (Just ('W', White0), Just (Circle, White1))
+                                        (Just ('W', White0), Just (Circle, White0))
                                        else
-                                        (Just ('B', Black0), Just (Circle, Black1))
+                                        (Just ('B', Black0), Just (Circle, Black0))
 
     return ((x,y), Tile symbol shape color)
+
+metaData :: GridState -> Map (Int, Int) Tile
+metaData GridState{ inputState, gameState } = fromList $ [((9, 0), blackScoreTile), ((10, 0), whiteScoreTile)]
+    where
+        whiteScoreTile = Tile (Just (C.intToDigit $ whiteScore gameState, White0)) (Just (Square, White0)) (Just Blue0)
+        blackScoreTile = Tile (Just (C.intToDigit $ blackScore gameState, Black0)) (Just (Square, Black0)) (Just Blue0)
+                                
 
 discToColor :: Disc -> Color
 discToColor White = White1
