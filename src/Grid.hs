@@ -23,20 +23,19 @@ start = runClassic classic
 classic :: Classic GridState
 classic = Classic
   { title = "Reversi"
-  , rows = boardSize + metaSize
-  , cols = boardSize + metaSize
+  , rows = boardSize
+  , cols = boardSize + 1
   , tilePixelSize = 64
   , backgroundColor = Black2
   , setupFn = return $ GridState{ inputState = (0, 0, False), gameState = startingState }
   , updateFn = update
   , cleanupFn = const (return ())
-  , tileMapFn = gridMap boardSize metaSize 
-  , sfxFn = \(x,y,_) -> if x == 7 && y == 7 then [Achievement] else []
+  , tileMapFn = gridMap boardSize
+  , sfxFn = const []
   , quitFn = quit
   }
     where
         boardSize = 8
-        metaSize = 5
 
 update :: Input -> GridState -> IO GridState
 update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=keys} GridState{ inputState = inputState@(x, y, click), gameState = gameState@GameState{ currentDisc, currentBoard, frames } }
@@ -51,8 +50,8 @@ update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=key
                     else 
                         GridState{ inputState = (mx, my, True), gameState = gameState }
 
-gridMap :: Int -> Int -> GridState -> Map (Int, Int) Tile
-gridMap bSize mSize state = Map.union (boardMap bSize state) (metaDataMap bSize state)
+gridMap :: Int -> GridState -> Map (Int, Int) Tile
+gridMap bSize state = placeTilesAt (boardMap bSize state) (0, bSize) (metaDataMap state)
 
 boardMap :: Int -> GridState -> Map (Int, Int) Tile
 boardMap bSize GridState{ inputState = (mx, my, click), gameState = GameState{ currentDisc, currentBoard, frames } } = fromList $ do
@@ -79,12 +78,12 @@ boardMap bSize GridState{ inputState = (mx, my, click), gameState = GameState{ c
 
     return ((x,y), Tile symbol shape color)
 
-metaDataMap :: Int -> GridState -> Map (Int, Int) Tile
-metaDataMap bSize GridState{ inputState, gameState } = Map.union turnTile (Map.union leftScoreTile rightScoreTile)
+metaDataMap :: GridState -> Map (Int, Int) Tile
+metaDataMap GridState{ inputState, gameState } = Map.union turnTile (Map.union leftScoreTile rightScoreTile)
     where
-        leftScoreTile  = twoDigitToTile White0 (bSize, 0) (whiteScore gameState)
-        rightScoreTile = twoDigitToTile Black0 (bSize + 3, 0) (blackScore gameState)
-        turnTile       = fromList $ [((bSize + 2, 0), Tile (Just (turnChar, Rose2)) (Nothing) (Just Cyan2))]
+        leftScoreTile  = twoDigitToTile White0 (0, 0) (whiteScore gameState)
+        rightScoreTile = twoDigitToTile Black0 (3, 0) (blackScore gameState)
+        turnTile       = fromList $ [((2, 0), Tile (Just (turnChar, Rose2)) (Nothing) (Just Cyan2))]
         turnChar       = if currentDisc gameState == Black then '>' else '<'
         turnColor      = if currentDisc gameState == Black then Black0 else White0 
 
