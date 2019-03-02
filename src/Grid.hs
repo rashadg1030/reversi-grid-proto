@@ -26,7 +26,7 @@ classic = Classic
   , rows = boardSize
   , cols = boardSize + 1
   , tilePixelSize = 64
-  , backgroundColor = Black2
+  , backgroundColor = Cyan2
   , setupFn = return $ GridState{ inputState = (0, 0, False), gameState = startingState }
   , updateFn = update
   , cleanupFn = const (return ())
@@ -51,7 +51,7 @@ update Input{mouse=Mouse{mousePosition=(mx,my),mouseButton=mouseButton},keys=key
                         GridState{ inputState = (mx, my, True), gameState = gameState }
 
 gridMap :: Int -> GridState -> Map (Int, Int) Tile
-gridMap bSize state = placeTilesAt (boardMap bSize state) (0, bSize) (metaDataMap state)
+gridMap bSize state = placeTilesAt (boardMap bSize state) (1, bSize) (metaDataMap state)
 
 boardMap :: Int -> GridState -> Map (Int, Int) Tile
 boardMap bSize GridState{ inputState = (mx, my, click), gameState = GameState{ currentDisc, currentBoard, frames } } = fromList $ do
@@ -82,18 +82,17 @@ metaDataMap :: GridState -> Map (Int, Int) Tile
 metaDataMap GridState{ inputState, gameState } = Map.union turnTile (Map.union leftScoreTile rightScoreTile)
     where
         leftScoreTile  = twoDigitToTile White0 (0, 0) (whiteScore gameState)
-        rightScoreTile = twoDigitToTile Black0 (3, 0) (blackScore gameState)
-        turnTile       = fromList $ [((2, 0), Tile (Just (turnChar, Rose2)) (Nothing) (Just Cyan2))]
-        turnChar       = if currentDisc gameState == Black then '>' else '<'
-        turnColor      = if currentDisc gameState == Black then Black0 else White0 
+        rightScoreTile = twoDigitToTile Black0 (4, 0) (blackScore gameState)
+        turnTile       = fromList $ zipWith (\x ch -> ((x, 0), Tile (Just (ch, Rose2)) Nothing Nothing)) [2..] turnString
+        turnString     = if currentDisc gameState == Black then "->" else "<-"
 
 twoDigitToTile :: Color -> (Int, Int) -> Int -> Map (Int, Int) Tile
 twoDigitToTile c (x, y) n = fromList $ [((x, y), tile1), ((x + 1, y), tile2)]
     where
         digit1 = fst $ splitInt n
         digit2 = snd $ splitInt n 
-        tile1  = Tile (Just (digit1, c)) (Nothing) (Just Cyan2)
-        tile2  = Tile (Just (digit2, c)) (Nothing) (Just Cyan2)
+        tile1  = Tile (Just (digit1, c)) Nothing Nothing
+        tile2  = Tile (Just (digit2, c)) Nothing Nothing
 
 splitInt :: Int -> (Char, Char)
 splitInt n = if (length $ show n) == 1 then
