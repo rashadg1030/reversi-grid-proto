@@ -25,12 +25,13 @@ classic = Classic
   { title = "Reversi"
   , rows = boardSize + metaSize
   , cols = boardSize + metaSize
-  , tilePixelSize = 128
+  , tilePixelSize = 64
   , backgroundColor = Black2
   , setupFn = return $ GridState{ inputState = (0, 0, False), gameState = startingState }
   , updateFn = update
   , cleanupFn = const (return ())
   , tileMapFn = gridMap boardSize metaSize 
+  , sfxFn = \(x,y,_) -> if x == 7 && y == 7 then [Achievement] else []
   , quitFn = quit
   }
     where
