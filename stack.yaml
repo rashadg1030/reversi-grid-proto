@@ -36,11 +36,13 @@ resolver: lts-13.5
 packages:
 - .
 - ../grid-proto
+- ../reversi
+- ../sdl2-fps
 # Dependency packages to be pulled from upstream that are not in the resolver
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- sdl2-fps-0.0.2
+#- sdl2-fps-0.0.2
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
